@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# -*- utf-8 -*-
+# -*- coding: utf-8 -*-
 #
 # Copyright (C) 2012 Lorenzo Carbonell
 # lorenzo.carbonell.cerezo@gmail.com
