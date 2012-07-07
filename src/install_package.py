@@ -30,7 +30,7 @@ from apt.cache import Cache
 from apt.cache import LockFailedException
 
 class InstallPackageDialog(gtk.Dialog):
-	def __init__(self,gta = None):
+	def __init__(self,packages = None):
 		title = 'Install package'
 		gtk.Dialog.__init__(self,title,None,gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,(gtk.STOCK_OK,gtk.RESPONSE_ACCEPT))
 		self.set_position(gtk.WIN_POS_CENTER_ALWAYS)
@@ -56,6 +56,8 @@ class InstallPackageDialog(gtk.Dialog):
 		#
 		#
 		self.entry12 = gtk.Entry()
+		if packages:
+			self.entry12.set_text(packages)
 		self.entry12.connect('key-press-event',self.on_key_press)
 		table2.attach(self.entry12,1,2,0,1, xoptions = gtk.EXPAND|gtk.FILL, yoptions = gtk.SHRINK)
 		#
@@ -86,45 +88,75 @@ class InstallPackageDialog(gtk.Dialog):
 		
 	def install_package(self,widget):
 		cache = apt.cache.Cache(self.progress.open)
-		package_name = self.entry12.get_text()
-		try:
-			if cache[package_name].is_installed:
-				md = gtk.MessageDialog(parent=self,
-				flags= gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
-				type=gtk.MESSAGE_WARNING,
-				buttons= gtk.BUTTONS_OK,
-				message_format='Package %s is already installed'%package_name)
-				md.run()
-				md.destroy()
+		packages = self.entry12.get_text().split()
+		nopackages = []
+		noupgradables = []
+		for package in packages:
+			try:
+				if not cache[package].is_upgradable:
+					noupgradables.append(package)
+			except KeyError,e:
+				print e
+				nopackages.append(package)
+		if len(noupgradables)>0:
+			if len(noupgradables)>1:
+				packages = ', '.join(noupgradables)
+				message = "The packages: '%s'\n can't be upgrade"%packages
 			else:
-				try:
-					cache[package_name].mark_install(auto_fix=True, auto_inst=True, from_user=True)
-					self.set_size_request(800, 650)
-					self.progress.show_terminal(expanded=True)
-					cache.commit(self.progress.fetch, self.progress.install)					
-				except LockFailedException,e:
-					print e
-					md = gtk.MessageDialog(parent=self,
-					flags= gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
-					type=gtk.MESSAGE_ERROR,
-					buttons= gtk.BUTTONS_OK,
-					message_format='Must be root to install "%s"'%package_name)
-					md.run()
-					md.destroy()
-					self.progress.show_terminal(expanded=False)
-					self.set_size_request(400, 200)
-		except KeyError,e:
+				message = "This package %s can't be upgrade"%noupgradables[0]
+			md = gtk.MessageDialog(parent=self,
+			flags= gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
+			type=gtk.MESSAGE_WARNING,
+			buttons= gtk.BUTTONS_OK,
+			message_format=message)
+			md.run()
+			md.destroy()
+			return
+			
+		if len(nopackages)>0:
+			if len(nopackages)>1:
+				packages = ', '.join(nopackages)
+				message = "There are no packages called:\n '%s'"%packages
+			else:
+				message = 'There is no package called "%s"'%nopackages[0]
+			md = gtk.MessageDialog(parent=self,
+			flags= gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
+			type=gtk.MESSAGE_ERROR,
+			buttons= gtk.BUTTONS_OK,
+			message_format=message)
+			md.run()
+			md.destroy()
+			return
+			
+		for package in packages:
+			if cache[package].is_installed:
+				cache[package].mark_upgrade()
+			else:
+				cache[package].mark_install(auto_fix=True, auto_inst=True, from_user=True)
+		try:
+			self.set_size_request(800, 650)
+			self.progress.show_terminal(expanded=True)
+			cache.commit(self.progress.fetch, self.progress.install)					
+		except LockFailedException,e:
 			print e
 			md = gtk.MessageDialog(parent=self,
 			flags= gtk.DIALOG_MODAL | gtk.DIALOG_DESTROY_WITH_PARENT,
 			type=gtk.MESSAGE_ERROR,
 			buttons= gtk.BUTTONS_OK,
-			message_format='There is no package called "%s"'%package_name)
+			message_format='Must be root')
 			md.run()
 			md.destroy()
+			self.progress.show_terminal(expanded=False)
+			self.set_size_request(400, 200)			
 		self.progress.show_terminal(expanded=False)
 		self.set_size_request(400, 200)
 
 if __name__ == '__main__':
-    ipd = InstallPackageDialog()
-    ipd.run()
+	import sys
+	if len(sys.argv)>2:
+		packages = (' '.join(sys.argv[1:])).strip()
+	else:
+		packages = None
+	ipd = InstallPackageDialog(packages)
+	ipd.run()
+
