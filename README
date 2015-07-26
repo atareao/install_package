@@ -1,0 +1,28 @@
+====================
+install_package
+====================
+
+A simple gui to install packages
+
+For more information, please visit our website:
+https://github.com/atareao/install_package
+or
+http://www.atareao.es
+
+============
+Requirements
+============
+
+Required dependencies:
+
+	gir1.2-gtk-3.0,
+	gir1.2-gdkpixbuf-2.0,
+	gir1.2-notify-0.7
+
+========
+Download
+========
+
+Download the package:
+
+    $ git clone https://github.com/atareao/install_package.git
